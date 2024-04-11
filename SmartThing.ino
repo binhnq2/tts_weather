@@ -1,32 +1,37 @@
 #include<HTTPClient.h>
 #include<ArduinoJson.h>
+#include "WiFi.h"
 #include <WiFiUdp.h>
 #include<Adafruit_SSD1306.h>
 #include<Adafruit_GFX.h>
 #include<SPI.h>
 #include <time.h>
 #include <Audio.h>
+#include "EEPROM.h"
 #include "weather_icon.h"
 
-const char* ssid = "Tang2new";      // Enter your SSID
-const char* pass = "123456789";               // Enter Password
+// const char* ssid = "Tang2new";      // Enter your SSID
+// const char* pass = "123456789";               // Enter Password
 
+// Time connect API
+unsigned long startMillis;
+unsigned long currentMillis;
+const unsigned long period = 60000;
 
-// Variables to save date and time
-char ngayThangNam [10];
-char gioPhutGiay [5];
+// thong tin thoi tiet
+float nhietDo ;
+const char* thongtinThoiTiet ;
+int maThoiTiet ;
+const char* noidungCanhBao ;
 
-/* Configuration of NTP */
-// choose the best fitting NTP server pool for your country
+// cài đặt thời gian
 #define MY_NTP_SERVER "at.pool.ntp.org"
 #define MY_TZ "<+07>-7"
-
-time_t now;                          // this are the seconds since Epoch (1970) - UTC
-tm tm;
-
-String api_head = "http://api.weatherbit.io/v2.0/current?city=";      
-
-// Digital I/O used
+char ngayThangNam [10];
+char gioPhutGiay [5];
+time_t now;
+tm tm; 
+// Định nghĩa cổng cho âm thanh
 #define SD_CS          5
 #define SPI_MOSI      23
 #define SPI_MISO      19
@@ -34,6 +39,14 @@ String api_head = "http://api.weatherbit.io/v2.0/current?city=";
 #define I2S_DOUT      25
 #define I2S_BCLK      27
 #define I2S_LRC       26
+// định nghĩa cho smartwifi
+#define LENGTH(x) (strlen(x) + 1)  
+#define EEPROM_SIZE 200             
+#define WIFI_RESET 0   
+String ssid;                       
+String password;       
+unsigned long millis_RESET;
+bool isFirstTime = true;
 
 Audio audio;
 
@@ -44,13 +57,18 @@ void setup() {
 
   // Displays all the weather icons 
   Serial.begin(115200);
-  //setupHienThi();
+  setupHienThi();
   setupWifi();
-  setupAmThanh();
-  //setupThoiGian();
-
-  audio.connecttospeech("Hôm nay nóng vãi ra!!!", "vi"); // Google TTS
-  delay(5000);
+  //setupAmThanh();
+  Serial.println("Setup thoi gian");
+  setupThoiGian();
+  
+  display.clearDisplay();
+Serial.println("KN API");
+  //audio.connecttospeech("Hôm nay nóng vãi ra!!!", "vi"); // Google TTS
+  delay(500);
+  startMillis = millis();
+  Serial.println("Setup xong");
 }
 
 // Thiết lập kết nối wifi
@@ -61,23 +79,110 @@ void setupWifi() {
   display.setCursor(0, 0);
   display.setTextColor(WHITE);
   display.setTextSize(1);
-  display.println("Dang ket noi Wifi:");
-  display.println(ssid);
-  //display.display();
-  WiFi.begin(ssid, pass);
-  while (WiFi.status() != WL_CONNECTED)   // wait for connection
-  {
-    Serial.print(".");
-    delay(500);
+  
+  pinMode(WIFI_RESET, INPUT);
+  if (!EEPROM.begin(EEPROM_SIZE)) { 
+    Serial.println("Failed to init EEPROM");
+    delay(1000);
   }
-  // display.setCursor(0, 48);
-  // display.setTextSize(2);
-  // display.setTextColor(BLACK, WHITE);
-  // display.print("Da ket noi !");
-  // display.display();
-  // delay(500);
-  // display.clearDisplay();
-  // display.setTextColor(WHITE);
+  else
+  {
+    ssid = read_flash(0); 
+    Serial.print("SSID = ");
+    Serial.println(ssid);
+    password = read_flash(40); 
+    Serial.print("Password = ");
+    Serial.println(password);
+  }
+  display.println("Dang ket noi wifi...");
+  WiFi.begin(ssid.c_str(), password.c_str());
+  display.display();
+
+  delay(3000);   
+
+  if (WiFi.status() != WL_CONNECTED) 
+  {
+    WiFi.mode(WIFI_AP_STA);
+    WiFi.beginSmartConfig();
+    display.clearDisplay();
+    display.println("Dang cho SmartConfig.");
+    display.display();
+    while (!WiFi.smartConfigDone()) {
+      delay(500);
+      Serial.print(".");
+    }
+    display.clearDisplay();
+    display.println("Da ket noi SmartConfig.");
+    display.display();
+    display.clearDisplay();
+    display.println("Dang cho WiFi");
+    display.display();
+    while (WiFi.status() != WL_CONNECTED) {
+      delay(500);
+      Serial.print(".");
+    }
+    display.clearDisplay();
+    Serial.println("WiFi Connected.");
+
+    //Serial.print("IP Address: ");
+    //Serial.println(WiFi.localIP());
+    
+    ssid = WiFi.SSID();
+    password = WiFi.psk();
+    Serial.print("SSID:");
+    Serial.println(ssid);
+    Serial.print("password:");
+    Serial.println(password);
+    Serial.println("Store SSID & password in Flash");
+    write_flash(ssid.c_str(), 0); 
+    write_flash(password.c_str(), 40); 
+  }
+  else
+  {
+    display.clearDisplay();
+    display.println("WiFi Connected");
+  }
+
+   display.display();
+   delay(500);
+}
+void write_flash(const char* toStore, int startAddr) {
+  int i = 0;
+  for (; i < LENGTH(toStore); i++) {
+    EEPROM.write(startAddr + i, toStore[i]);
+  }
+  EEPROM.write(startAddr + i, '\0');
+  EEPROM.commit();
+}
+
+
+String read_flash(int startAddr) {
+  char in[128]; 
+  int i = 0;
+  for (; i < 128; i++) {
+    in[i] = EEPROM.read(startAddr + i);
+  }
+  return String(in);
+}
+
+void resetWifi()
+{
+  if (digitalRead(WIFI_RESET) == HIGH)
+  {
+    if (millis() - millis_RESET >= 5000)
+    {
+      Serial.println("Reseting the WiFi credentials");
+      write_flash("", 0); 
+      write_flash("", 40); 
+      Serial.println("Wifi credentials erased");
+      display.clearDisplay();
+      display.println("Dang khoi dong lai...");
+      display.display();
+      delay(500);
+      ESP.restart();            
+    }
+  }
+  
 }
 
 void setupHienThi() {
@@ -88,15 +193,15 @@ void setupHienThi() {
   // Hiển thị khởi tạo tên sản phẩm trên màn hình
   display.clearDisplay();
   display.setTextColor(WHITE);
-  display.setCursor(0, 10);
-  display.setTextSize(1);
-  display.println("OLED");
-  display.println("WEATHER");
-  display.println("MOTINORING");
+  display.setCursor(30, 10);
+  display.setTextSize(2);
+  display.println("DU BAO");
+  display.setCursor(10, 30);
+  display.println("THOI TIET");
   display.display();
   delay(1000);
-  display.invertDisplay(1);
-  delay(500);
+  //display.invertDisplay(1);
+  //delay(500);
 }
 
 void setupThoiGian() {
@@ -107,13 +212,19 @@ void setupThoiGian() {
 
 void loop() {
 
-  audio.loop();
-  // display.clearDisplay();
-  // HienThiThoiGian();
+Serial.println("Loop...");
+  currentMillis = millis();
+  millis_RESET = millis();
+  // audio.loop();
+  // audio.connecttohost("https://github.com/binhnq2/tts_weather/raw/main/1h_mua.mp3");
+  display.clearDisplay();
+
   
-  // KetNoiAPI();
-  
-  // display.display();
+  KetNoiAPI();
+  display.display();
+  //audio.connecttospeech("Hôm nay nóng vãi ra!!!", "vi"); // Google TTS
+  delay(5000);
+  //resetWifi();
 }
 
 // HIỂN THỊ THỜI GIAN //
@@ -123,85 +234,94 @@ void HienThiThoiGian() {
 
   sprintf(gioPhutGiay, "%02d:%02d    %02d-%02d-%02d", tm.tm_hour, tm.tm_min, tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900);
 
-    
+  // Nếu không có nội dung cảnh báo thì hiển thị thời gian
+  Serial.println("OK time");
   display.setCursor(5, 54);
-    display.setTextSize(1);
-    display.println(gioPhutGiay);
-  delay(1000);
+  display.setTextSize(1);
+  display.println(gioPhutGiay);
 }
 
 // THỜI TIÊT //
 String payload;
 
 void KetNoiAPI() {
-  HTTPClient http;
-  // String main_head = "";
-  // main_head = api_head + "GOA";
-  // main_head = main_head + "&country=IN&units=M&key=";
-  // main_head = main_head + api_key;
-  http.begin("https://jsonblob.com/api/jsonBlob/1225042321866612736");
-  http.addHeader("Content-Type", "application/json");
-  int httpcode = http.GET();
-  if (httpcode != 200)    // Not an OK response
-  {
-    display.setTextSize(1);
-    display.setCursor(0, 32);
-    display.println("Please Wait.....");
-    display.println("");
-    display.print("Is internet available??");
-    display.display();
-    delay(1000);
-    return;
+    HTTPClient http;
+    http.begin("https://jsonblob.com/api/jsonBlob/1225042321866612736");
+    http.addHeader("Content-Type", "application/json");
+    int httpcode = http.GET();
+    Serial.println("Ket noi");
+    if (httpcode != 200)
+    {
+      display.setTextSize(1);
+      display.setCursor(0, 32);
+      display.println("Vui long doi.....");
+      display.println("");
+      display.print("Hay Kiem Tra Internet !!!");
+      display.display();
+      delay(1000);
+      return;
+    }
+
+    // Success response
+    else
+    {
+      
+      payload=http.getString();
+      Serial.println(payload);
+
+      // Parsing
+      JsonDocument root;
+      DeserializationError error = deserializeJson(root, payload);
+      JsonObject object = root.as<JsonObject>();
+      JsonArray arrayData = object["data"];
+      JsonObject current_obs = arrayData[0];
+      JsonObject current_desc = current_obs["weather"].as<JsonObject>();
+
+
+      const char* city_name = current_obs["city_name"];
+      nhietDo = current_obs["temp"];
+      thongtinThoiTiet = current_desc["description"];
+      maThoiTiet = current_desc["code"];
+
+      // Kiểm tra có thông tin cảnh báo
+      JsonArray arrayAlert = object["alerts"];
+      if (!arrayAlert.isNull()) {
+        noidungCanhBao = arrayAlert[0]["description"];
+      } else {
+        noidungCanhBao = "";
+      }
+      
+    }
+    http.end();
+    startMillis = currentMillis;
+  // Hien thi thong tin
+  HienThiIcon(maThoiTiet);
+  display.setCursor(62, 10);
+  display.setTextSize(2);
+  display.print((int)nhietDo);
+  display.print(" ");
+  display.setTextSize(1);
+  display.cp437(true);
+  display.write(167);
+  display.setTextSize(2);
+  display.print("C");
+  display.setTextSize(1);
+  display.setCursor(62, 30);
+  display.println((String)thongtinThoiTiet);
+  display.drawLine(0, 48, 127, 48, WHITE);
+  // Nếu có thông tin cảnh báo thì hiển thị
+  if (strlen(noidungCanhBao) > 0) {
+    Serial.println(noidungCanhBao);
+    display.setCursor(0, 56);
+    display.print(noidungCanhBao);
+    display.print("\t");
+    display.print("");
+    display.startscrollleft(0x07, 0x07);
+  } else {
+    display.stopscroll();
+    HienThiThoiGian();
   }
-
-  // Success response
-  else
-  {
-     payload=http.getString();
-     Serial.println(payload);
-
-    // Parsing
-    JsonDocument root;
-    DeserializationError error = deserializeJson(root, payload);
-    JsonObject object = root.as<JsonObject>();
-    JsonArray arrayData = object["data"];
-    JsonObject current_obs = arrayData[0];
-    JsonObject current_desc = current_obs["weather"].as<JsonObject>();
-
-    const char* city_name = current_obs["city_name"];
-    float curr_temp = current_obs["temp"];
-    int air_quality = current_obs["aqi"];
-    float app_temp = current_obs["app_temp"];
-    float wind_spd = current_obs["wind_spd"];
-    const char* wind_cdir = current_obs["wind_cdir"];
-    const char* sunrise = current_obs["sunrise"];
-    const char* sunset = current_obs["sunset"];
-    const char* desc = current_desc["description"];
-    int code = current_desc["code"];
-
-    HienThiIcon(code);
-   
-
-    display.setCursor(62, 10);
-    display.setTextSize(2);
-    display.print(curr_temp);
-    display.print(" ");
-    display.setTextSize(1);
-    display.cp437(true);
-    display.write(167);
-    display.setTextSize(2);
-    display.print("C");
-
-    display.setTextSize(1);
-    display.setCursor(62, 30);
-    display.println(desc);
-    display.drawLine(0, 48, 127, 48, WHITE);
-
   
-    //audio.connecttospeech(desc, "vi");
-    
-  }
-  http.end();
 }
 
 // Hiển thị icon thời tiết
@@ -232,7 +352,6 @@ void HienThiIcon(int code_no)
 
 // ÂM THANH
 void setupAmThanh() {
-    //SPI.begin(SPI_SCK, SPI_MISO, SPI_MOSI);
     audio.setPinout(I2S_BCLK, I2S_LRC, I2S_DOUT);
     audio.setVolume(21); // default 0...21
 }
