@@ -10,27 +10,35 @@
 #include "EEPROM.h"
 #include "weather_icon.h"
 
-// const char* ssid = "Tang2new";      // Enter your SSID
-// const char* pass = "123456789";               // Enter Password
+// Định nghĩa biến cho màn hình OLED
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
-// Time connect API
+// Định nghĩa biến cho wifi
+String ssid;                       
+String password; 
+// Định nghĩa cho smartwifi
+#define LENGTH(x) (strlen(x) + 1)  
+#define EEPROM_SIZE 200             
+#define WIFI_RESET 13
+unsigned long millis_RESET;
+
+// Định nghĩa biến để thời gian chờ kết nội API thông tin thời tiết
 unsigned long startMillis;
 unsigned long currentMillis;
-const unsigned long period = 60000;
+const unsigned long period = 10000; // Tương ứng 10 giây sẽ gọi API thông tin thời tiết
 
-// thong tin thoi tiet
-float nhietDo ;
-const char* thongtinThoiTiet ;
-int maThoiTiet ;
+// Biến lưu trữ thông tin cảnh báo thời tiết
 const char* noidungCanhBao ;
 
-// cài đặt thời gian
+// Định nghĩa biến để thiết lập thông tin thời gian từ WIFI
 #define MY_NTP_SERVER "at.pool.ntp.org"
 #define MY_TZ "<+07>-7"
-char ngayThangNam [10];
-char gioPhutGiay [5];
+char thoigian [5];
 time_t now;
-tm tm; 
+tm tm;
+
 // Định nghĩa cổng cho âm thanh
 #define SD_CS          5
 #define SPI_MOSI      23
@@ -39,44 +47,49 @@ tm tm;
 #define I2S_DOUT      25
 #define I2S_BCLK      27
 #define I2S_LRC       26
-// định nghĩa cho smartwifi
-#define LENGTH(x) (strlen(x) + 1)  
-#define EEPROM_SIZE 200             
-#define WIFI_RESET 0   
-String ssid;                       
-String password;       
-unsigned long millis_RESET;
-bool isFirstTime = true;
-
 Audio audio;
 
-Adafruit_SSD1306 display(128, 64, &Wire, -1);
-
+// Biến tốc độ chạy chữ trên màn hình
+#define SCROLL_SPEED 1 // Điều chỉnh tốc độ scroll text trên màn hình
 
 void setup() {
-
-  // Displays all the weather icons 
   Serial.begin(115200);
   setupHienThi();
   setupWifi();
-  //setupAmThanh();
-  Serial.println("Setup thoi gian");
+  setupAmThanh();
   setupThoiGian();
   
   display.clearDisplay();
-Serial.println("KN API");
-  //audio.connecttospeech("Hôm nay nóng vãi ra!!!", "vi"); // Google TTS
+  audio.connecttospeech("Hôm nay nóng vãi ra!!!", "vi"); // Google TTS
   delay(500);
   startMillis = millis();
-  Serial.println("Setup xong");
+  
+  HienThiThoiTiet();
+  HienThiCanhBaoThoiTiet();
 }
 
+void loop() {
+
+  currentMillis = millis();
+  millis_RESET = millis();
+  audio.loop();
+  audio.connecttohost("https://github.com/binhnq2/tts_weather/raw/main/1h_mua.mp3");
+
+  KetNoiAPI();
+  display.display();
+  //audio.connecttospeech("Hôm nay nóng vãi ra!!!", "vi"); // Google TTS
+  resetWifi();
+}
+
+/*
+// THIẾT LẬP CÀI ĐẶT 
+**/
 // Thiết lập kết nối wifi
 void setupWifi() {
   // displays ssid of the router to be connected
   // display.invertDisplay(0);
   display.clearDisplay();
-  display.setCursor(0, 0);
+  display.setCursor(0, 20);
   display.setTextColor(WHITE);
   display.setTextSize(1);
   
@@ -113,19 +126,18 @@ void setupWifi() {
     }
     display.clearDisplay();
     display.println("Da ket noi SmartConfig.");
+    delay(500);
     display.display();
     display.clearDisplay();
-    display.println("Dang cho WiFi");
+    display.println("Dang cho ket noi WiFi...");
     display.display();
     while (WiFi.status() != WL_CONNECTED) {
       delay(500);
       Serial.print(".");
     }
     display.clearDisplay();
-    Serial.println("WiFi Connected.");
+    Serial.println("Da ket noi WiFi thanh cong !");
 
-    //Serial.print("IP Address: ");
-    //Serial.println(WiFi.localIP());
     
     ssid = WiFi.SSID();
     password = WiFi.psk();
@@ -140,7 +152,7 @@ void setupWifi() {
   else
   {
     display.clearDisplay();
-    display.println("WiFi Connected");
+    display.println("Da ket noi WiFi thanh cong !");
   }
 
    display.display();
@@ -154,7 +166,6 @@ void write_flash(const char* toStore, int startAddr) {
   EEPROM.write(startAddr + i, '\0');
   EEPROM.commit();
 }
-
 
 String read_flash(int startAddr) {
   char in[128]; 
@@ -178,11 +189,10 @@ void resetWifi()
       display.clearDisplay();
       display.println("Dang khoi dong lai...");
       display.display();
-      delay(500);
+      delay(2000);
       ESP.restart();            
     }
   }
-  
 }
 
 void setupHienThi() {
@@ -200,8 +210,7 @@ void setupHienThi() {
   display.println("THOI TIET");
   display.display();
   delay(1000);
-  //display.invertDisplay(1);
-  //delay(500);
+  display.clearDisplay();
 }
 
 void setupThoiGian() {
@@ -210,118 +219,19 @@ void setupThoiGian() {
   tzset();
 }
 
-void loop() {
-
-Serial.println("Loop...");
-  currentMillis = millis();
-  millis_RESET = millis();
-  // audio.loop();
-  // audio.connecttohost("https://github.com/binhnq2/tts_weather/raw/main/1h_mua.mp3");
-  display.clearDisplay();
-
-  
-  KetNoiAPI();
-  display.display();
-  //audio.connecttospeech("Hôm nay nóng vãi ra!!!", "vi"); // Google TTS
-  delay(5000);
-  //resetWifi();
-}
-
-// HIỂN THỊ THỜI GIAN //
-void HienThiThoiGian() {
-  time(&now); // read the current time
-  localtime_r(&now, &tm);             // update the structure tm with the current time
-
-  sprintf(gioPhutGiay, "%02d:%02d    %02d-%02d-%02d", tm.tm_hour, tm.tm_min, tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900);
-
-  // Nếu không có nội dung cảnh báo thì hiển thị thời gian
-  Serial.println("OK time");
-  display.setCursor(5, 54);
-  display.setTextSize(1);
-  display.println(gioPhutGiay);
-}
-
+/*
+// THIẾT LẬP HIỂN THỊ
+**/
 // THỜI TIÊT //
 String payload;
 
 void KetNoiAPI() {
-    HTTPClient http;
-    http.begin("https://jsonblob.com/api/jsonBlob/1225042321866612736");
-    http.addHeader("Content-Type", "application/json");
-    int httpcode = http.GET();
-    Serial.println("Ket noi");
-    if (httpcode != 200)
-    {
-      display.setTextSize(1);
-      display.setCursor(0, 32);
-      display.println("Vui long doi.....");
-      display.println("");
-      display.print("Hay Kiem Tra Internet !!!");
-      display.display();
-      delay(1000);
-      return;
-    }
-
-    // Success response
-    else
-    {
-      
-      payload=http.getString();
-      Serial.println(payload);
-
-      // Parsing
-      JsonDocument root;
-      DeserializationError error = deserializeJson(root, payload);
-      JsonObject object = root.as<JsonObject>();
-      JsonArray arrayData = object["data"];
-      JsonObject current_obs = arrayData[0];
-      JsonObject current_desc = current_obs["weather"].as<JsonObject>();
-
-
-      const char* city_name = current_obs["city_name"];
-      nhietDo = current_obs["temp"];
-      thongtinThoiTiet = current_desc["description"];
-      maThoiTiet = current_desc["code"];
-
-      // Kiểm tra có thông tin cảnh báo
-      JsonArray arrayAlert = object["alerts"];
-      if (!arrayAlert.isNull()) {
-        noidungCanhBao = arrayAlert[0]["description"];
-      } else {
-        noidungCanhBao = "";
-      }
-      
-    }
-    http.end();
+  if (currentMillis - startMillis >= period)
+  {
+    HienThiThoiTiet();
     startMillis = currentMillis;
-  // Hien thi thong tin
-  HienThiIcon(maThoiTiet);
-  display.setCursor(62, 10);
-  display.setTextSize(2);
-  display.print((int)nhietDo);
-  display.print(" ");
-  display.setTextSize(1);
-  display.cp437(true);
-  display.write(167);
-  display.setTextSize(2);
-  display.print("C");
-  display.setTextSize(1);
-  display.setCursor(62, 30);
-  display.println((String)thongtinThoiTiet);
-  display.drawLine(0, 48, 127, 48, WHITE);
-  // Nếu có thông tin cảnh báo thì hiển thị
-  if (strlen(noidungCanhBao) > 0) {
-    Serial.println(noidungCanhBao);
-    display.setCursor(0, 56);
-    display.print(noidungCanhBao);
-    display.print("\t");
-    display.print("");
-    display.startscrollleft(0x07, 0x07);
-  } else {
-    display.stopscroll();
-    HienThiThoiGian();
   }
-  
+  HienThiCanhBaoThoiTiet();
 }
 
 // Hiển thị icon thời tiết
@@ -349,7 +259,117 @@ void HienThiIcon(int code_no)
     display.fillCircle(30, 30, 20, WHITE);   // sunny day
 
 }
+// HIỂN THỊ THỜI GIAN //
+void HienThiThoiGian() {
+  time(&now); // read the current time
+  localtime_r(&now, &tm);             // update the structure tm with the current time
 
+  sprintf(thoigian, "%02d:%02d    %02d-%02d-%02d", tm.tm_hour, tm.tm_min, tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900);
+
+  // Nếu không có nội dung cảnh báo thì hiển thị thời gian
+  display.setCursor(5, 54);
+  display.setTextSize(1);
+  display.println(thoigian);
+}
+
+// HIỂN THỊ THỜI TIẾT //
+void HienThiThoiTiet() {
+  HTTPClient http;
+    http.begin("https://jsonblob.com/api/jsonBlob/1225042321866612736");
+    http.addHeader("Content-Type", "application/json");
+    int httpcode = http.GET();
+    Serial.println("Ket noi");
+    if (httpcode != 200)
+    {
+      display.clearDisplay();
+      display.setTextSize(1);
+      display.setCursor(0, 32);
+      display.println("Vui long doi.....");
+      display.println("");
+      display.print("Hay Kiem Tra Internet !!!");
+      display.display();
+      delay(1000);
+      return;
+    }
+
+    // Success response
+    else
+    {
+      display.clearDisplay();
+      payload=http.getString();
+      Serial.println(payload);
+
+      // Parsing
+      JsonDocument root;
+      DeserializationError error = deserializeJson(root, payload);
+      JsonObject object = root.as<JsonObject>();
+      JsonArray arrayData = object["data"];
+      JsonObject current_obs = arrayData[0];
+      JsonObject current_desc = current_obs["weather"].as<JsonObject>();
+
+
+      const char* city_name = current_obs["city_name"];
+      float nhietDo = current_obs["temp"];
+      const char* thongtinThoiTiet = current_desc["description"];
+      int maThoiTiet = current_desc["code"];
+
+      // Kiểm tra có thông tin cảnh báo
+      JsonArray arrayAlert = object["alerts"];
+      if (!arrayAlert.isNull()) {
+        noidungCanhBao = arrayAlert[0]["description"];
+      } else {
+        noidungCanhBao = "";
+      }
+      
+      // Hien thi thong tin
+      HienThiIcon(maThoiTiet);
+      display.setCursor(62, 10);
+      display.setTextSize(2);
+      display.print((int)nhietDo);
+      display.print(" ");
+      display.setTextSize(1);
+      display.cp437(true);
+      display.write(167);
+      display.setTextSize(2);
+      display.print("C");
+      display.setTextSize(1);
+      display.setCursor(62, 30);
+      display.println((String)thongtinThoiTiet);
+      display.drawLine(0, 48, 127, 48, WHITE);
+    }
+    http.end();
+}
+
+// HIỂN THỊ CẢNH BÁO THỜI TIẾT //
+void HienThiCanhBaoThoiTiet() {
+  // Nếu có thông tin cảnh báo thì hiển thị
+  display.setCursor(0, 56);
+  display.fillRect(0, 56, 64, 16, SSD1306_BLACK);
+  if (strlen(noidungCanhBao) > 0) {
+    HienThiScroll();
+  } else {
+    display.stopscroll();
+    HienThiThoiGian();
+  }
+}
+
+// HIỂN THỊ SCROLL TEXT //
+void HienThiScroll() {
+  static int16_t x = SCREEN_WIDTH;
+
+  while (x >= -display.width()) {
+    display.setCursor(0, 56);
+    display.fillRect(x, 56, 128, 16, SSD1306_BLACK);
+    display.setCursor(x, 56);
+    display.println(noidungCanhBao);
+    display.display();
+    delay(50); // Adjust scroll speed
+    x -= SCROLL_SPEED;
+  }
+
+  // Reset x position for next iteration
+  x = SCREEN_WIDTH;
+}
 // ÂM THANH
 void setupAmThanh() {
     audio.setPinout(I2S_BCLK, I2S_LRC, I2S_DOUT);
@@ -358,4 +378,36 @@ void setupAmThanh() {
 
 void PhatThongBao(const char* thongbao) {
   audio.connecttospeech(thongbao, "vi"); // Google TTS
+}
+
+// optional
+void audio_info(const char *info){
+    Serial.print("info        "); Serial.println(info);
+}
+void audio_id3data(const char *info){  //id3 metadata
+    Serial.print("id3data     ");Serial.println(info);
+}
+void audio_eof_mp3(const char *info){  //end of file
+    Serial.print("eof_mp3     ");Serial.println(info);
+}
+void audio_showstation(const char *info){
+    Serial.print("station     ");Serial.println(info);
+}
+void audio_showstreamtitle(const char *info){
+    Serial.print("streamtitle ");Serial.println(info);
+}
+void audio_bitrate(const char *info){
+    Serial.print("bitrate     ");Serial.println(info);
+}
+void audio_commercial(const char *info){  //duration in sec
+    Serial.print("commercial  ");Serial.println(info);
+}
+void audio_icyurl(const char *info){  //homepage
+    Serial.print("icyurl      ");Serial.println(info);
+}
+void audio_lasthost(const char *info){  //stream URL played
+    Serial.print("lasthost    ");Serial.println(info);
+}
+void audio_eof_speech(const char *info){
+    Serial.print("eof_speech  ");Serial.println(info);
 }
