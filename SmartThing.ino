@@ -9,6 +9,7 @@
 #include <Audio.h>
 #include "EEPROM.h"
 #include "weather_icon.h"
+#include "utils.h"
 
 // Định nghĩa biến cho màn hình OLED
 #define SCREEN_WIDTH 128
@@ -25,12 +26,16 @@ String password;
 unsigned long millis_RESET;
 
 // Định nghĩa biến để thời gian chờ kết nội API thông tin thời tiết
-unsigned long startMillis;
+unsigned long startConnectApiMillis;
 unsigned long currentMillis;
-const unsigned long period = 10000; // Tương ứng 10 giây sẽ gọi API thông tin thời tiết
+const unsigned long connectApiPeriod = 10000; // Tương ứng 10 giây sẽ gọi API thông tin thời tiết
+
+// Định nghĩa biến để thời gian chờ phát thông tin cảnh báo
+unsigned long startAlertMillis;
+const unsigned long alertPeriod = 15000; // Tương ứng 15 giây sẽ phát thông tin cảnh báo nếu có thông tin cảnh báo
 
 // Biến lưu trữ thông tin cảnh báo thời tiết
-const char* noidungCanhBao ;
+const char* noidungCanhBaoHienThi;
 
 // Định nghĩa biến để thiết lập thông tin thời gian từ WIFI
 #define MY_NTP_SERVER "at.pool.ntp.org"
@@ -60,25 +65,23 @@ void setup() {
   setupThoiGian();
   
   display.clearDisplay();
-  audio.connecttospeech("Hôm nay nóng vãi ra!!!", "vi"); // Google TTS
   delay(500);
-  startMillis = millis();
+  startConnectApiMillis = millis();
+  startAlertMillis = millis();
   
-  HienThiThoiTiet();
+  String text = HienThiThoiTiet();
   HienThiCanhBaoThoiTiet();
+  PhatThongBao(text.c_str());
 }
 
 void loop() {
 
   currentMillis = millis();
   millis_RESET = millis();
-  audio.loop();
-  audio.connecttohost("https://github.com/binhnq2/tts_weather/raw/main/1h_mua.mp3");
 
   KetNoiAPI();
   display.display();
-  //audio.connecttospeech("Hôm nay nóng vãi ra!!!", "vi"); // Google TTS
-  resetWifi();
+  //resetWifi();
 }
 
 /*
@@ -178,7 +181,7 @@ String read_flash(int startAddr) {
 
 void resetWifi()
 {
-  if (digitalRead(WIFI_RESET) == HIGH)
+  while (digitalRead(WIFI_RESET) == HIGH)
   {
     if (millis() - millis_RESET >= 5000)
     {
@@ -226,12 +229,19 @@ void setupThoiGian() {
 String payload;
 
 void KetNoiAPI() {
-  if (currentMillis - startMillis >= period)
+  if (currentMillis - startConnectApiMillis >= connectApiPeriod)
   {
     HienThiThoiTiet();
-    startMillis = currentMillis;
+    startConnectApiMillis = currentMillis;
   }
   HienThiCanhBaoThoiTiet();
+
+  // Thời gian phát cảnh báo theo cài đặt
+  if (currentMillis - startAlertMillis >= alertPeriod) {
+    String text = "Chú ý !" + (String)noidungCanhBaoHienThi;
+    PhatThongBao(text.c_str());
+    startAlertMillis = currentMillis;
+  }
 }
 
 // Hiển thị icon thời tiết
@@ -273,71 +283,76 @@ void HienThiThoiGian() {
 }
 
 // HIỂN THỊ THỜI TIẾT //
-void HienThiThoiTiet() {
+String HienThiThoiTiet() {
+  String text = "";
   HTTPClient http;
-    http.begin("https://jsonblob.com/api/jsonBlob/1225042321866612736");
-    http.addHeader("Content-Type", "application/json");
-    int httpcode = http.GET();
-    Serial.println("Ket noi");
-    if (httpcode != 200)
-    {
-      display.clearDisplay();
-      display.setTextSize(1);
-      display.setCursor(0, 32);
-      display.println("Vui long doi.....");
-      display.println("");
-      display.print("Hay Kiem Tra Internet !!!");
-      display.display();
-      delay(1000);
-      return;
+  http.begin("https://jsonblob.com/api/jsonBlob/1225042321866612736");
+  http.addHeader("Content-Type", "application/json");
+  int httpcode = http.GET();
+  Serial.println("Ket noi");
+  if (httpcode != 200)
+  {
+    display.clearDisplay();
+    display.setTextSize(1);
+    display.setCursor(0, 32);
+    display.println("Vui long doi.....");
+    display.println("");
+    display.print("Hay Kiem Tra Internet !!!");
+    display.display();
+    delay(1000);
+    return text;
+  }
+
+  // Success response
+  else
+  {
+    display.clearDisplay();
+    payload=http.getString();
+    Serial.println(payload);
+
+    // Parsing
+    JsonDocument root;
+    DeserializationError error = deserializeJson(root, payload);
+    JsonObject object = root.as<JsonObject>();
+    JsonArray arrayData = object["data"];
+    JsonObject current_obs = arrayData[0];
+    JsonObject current_desc = current_obs["weather"].as<JsonObject>();
+
+
+    const char* city_name = current_obs["city_name"];
+    float nhietDo = current_obs["temp"];
+    const char* thongtinThoiTiet = current_desc["description"];
+    int maThoiTiet = current_desc["code"];
+
+    // Kiểm tra có thông tin cảnh báo
+    JsonArray arrayAlert = object["alerts"];
+    if (!arrayAlert.isNull()) {
+      noidungCanhBaoHienThi = arrayAlert[0]["description"];
+    } else {
+      noidungCanhBaoHienThi= "";
     }
+    
+    // Hien thi thong tin
+    HienThiIcon(maThoiTiet);
+    display.setCursor(62, 10);
+    display.setTextSize(2);
+    display.print((int)nhietDo);
+    display.print(" ");
+    display.setTextSize(1);
+    display.cp437(true);
+    display.write(167);
+    display.setTextSize(2);
+    display.print("C");
+    display.setTextSize(1);
+    display.setCursor(62, 30);
+    String thoitiet = convertVietnameseString((String)thongtinThoiTiet);
+    display.println(thoitiet);
+    display.drawLine(0, 48, 127, 48, WHITE);
 
-    // Success response
-    else
-    {
-      display.clearDisplay();
-      payload=http.getString();
-      Serial.println(payload);
-
-      // Parsing
-      JsonDocument root;
-      DeserializationError error = deserializeJson(root, payload);
-      JsonObject object = root.as<JsonObject>();
-      JsonArray arrayData = object["data"];
-      JsonObject current_obs = arrayData[0];
-      JsonObject current_desc = current_obs["weather"].as<JsonObject>();
-
-
-      const char* city_name = current_obs["city_name"];
-      float nhietDo = current_obs["temp"];
-      const char* thongtinThoiTiet = current_desc["description"];
-      int maThoiTiet = current_desc["code"];
-
-      // Kiểm tra có thông tin cảnh báo
-      JsonArray arrayAlert = object["alerts"];
-      if (!arrayAlert.isNull()) {
-        noidungCanhBao = arrayAlert[0]["description"];
-      } else {
-        noidungCanhBao = "";
-      }
-      
-      // Hien thi thong tin
-      HienThiIcon(maThoiTiet);
-      display.setCursor(62, 10);
-      display.setTextSize(2);
-      display.print((int)nhietDo);
-      display.print(" ");
-      display.setTextSize(1);
-      display.cp437(true);
-      display.write(167);
-      display.setTextSize(2);
-      display.print("C");
-      display.setTextSize(1);
-      display.setCursor(62, 30);
-      display.println((String)thongtinThoiTiet);
-      display.drawLine(0, 48, 127, 48, WHITE);
-    }
-    http.end();
+    text = "Thời tiết hôm nay " + (String)thongtinThoiTiet + ", nhiệt độ khoảng " + (int)nhietDo + " độ C";
+  }
+  http.end();
+  return text;
 }
 
 // HIỂN THỊ CẢNH BÁO THỜI TIẾT //
@@ -345,7 +360,7 @@ void HienThiCanhBaoThoiTiet() {
   // Nếu có thông tin cảnh báo thì hiển thị
   display.setCursor(0, 56);
   display.fillRect(0, 56, 64, 16, SSD1306_BLACK);
-  if (strlen(noidungCanhBao) > 0) {
+  if (strlen(noidungCanhBaoHienThi) > 0) {
     HienThiScroll();
   } else {
     display.stopscroll();
@@ -356,12 +371,14 @@ void HienThiCanhBaoThoiTiet() {
 // HIỂN THỊ SCROLL TEXT //
 void HienThiScroll() {
   static int16_t x = SCREEN_WIDTH;
+  String noidung = removeDiacritics((String)noidungCanhBaoHienThi);
+  Serial.println(noidung);
 
   while (x >= -display.width()) {
     display.setCursor(0, 56);
     display.fillRect(x, 56, 128, 16, SSD1306_BLACK);
     display.setCursor(x, 56);
-    display.println(noidungCanhBao);
+    display.println(noidung);
     display.display();
     delay(50); // Adjust scroll speed
     x -= SCROLL_SPEED;
@@ -377,7 +394,12 @@ void setupAmThanh() {
 }
 
 void PhatThongBao(const char* thongbao) {
-  audio.connecttospeech(thongbao, "vi"); // Google TTS
+  if (strlen(thongbao) > 0) {
+    audio.connecttospeech(thongbao, "vi"); // Google TTS
+    while(audio.isRunning()) {
+      audio.loop();
+    }
+  }
 }
 
 // optional
