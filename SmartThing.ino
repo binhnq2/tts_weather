@@ -10,6 +10,7 @@
 #include "EEPROM.h"
 #include "weather_icon.h"
 #include "utils.h"
+#include <ezButton.h>
 
 // Định nghĩa biến cho màn hình OLED
 #define SCREEN_WIDTH 128
@@ -22,8 +23,10 @@ String password;
 // Định nghĩa cho smartwifi
 #define LENGTH(x) (strlen(x) + 1)  
 #define EEPROM_SIZE 200             
-#define WIFI_RESET 13
-unsigned long millis_RESET;
+const int LONG_PRESS_TIME  = 1000; // 1000 milliseconds
+ezButton button(13);  // create ezButton object that attach to pin 13;
+unsigned long pressedTime  = 0;
+unsigned long releasedTime = 0;
 
 // Định nghĩa biến để thời gian chờ kết nội API thông tin thời tiết
 unsigned long startConnectApiMillis;
@@ -35,7 +38,8 @@ unsigned long startAlertMillis;
 const unsigned long alertPeriod = 15000; // Tương ứng 15 giây sẽ phát thông tin cảnh báo nếu có thông tin cảnh báo
 
 // Biến lưu trữ thông tin cảnh báo thời tiết
-const char* noidungCanhBaoHienThi;
+String noidungCanhBao;
+String noidungCanhBaoHienThi;
 
 // Định nghĩa biến để thiết lập thông tin thời gian từ WIFI
 #define MY_NTP_SERVER "at.pool.ntp.org"
@@ -70,18 +74,17 @@ void setup() {
   startAlertMillis = millis();
   
   String text = HienThiThoiTiet();
-  HienThiCanhBaoThoiTiet();
   PhatThongBao(text.c_str());
+  HienThiCanhBaoThoiTiet();
 }
 
 void loop() {
 
   currentMillis = millis();
-  millis_RESET = millis();
 
   KetNoiAPI();
   display.display();
-  //resetWifi();
+  resetWifi();
 }
 
 /*
@@ -95,8 +98,8 @@ void setupWifi() {
   display.setCursor(0, 20);
   display.setTextColor(WHITE);
   display.setTextSize(1);
-  
-  pinMode(WIFI_RESET, INPUT);
+  button.setDebounceTime(10);
+
   if (!EEPROM.begin(EEPROM_SIZE)) { 
     Serial.println("Failed to init EEPROM");
     delay(1000);
@@ -181,10 +184,18 @@ String read_flash(int startAddr) {
 
 void resetWifi()
 {
-  while (digitalRead(WIFI_RESET) == HIGH)
-  {
-    if (millis() - millis_RESET >= 5000)
-    {
+  button.loop(); // MUST call the loop() function first
+
+  if(button.isPressed()) {
+    pressedTime = millis();
+    Serial.println("Reset button is pressed");
+  }
+
+  if(button.isReleased()) {
+    Serial.println("Reset button is released");
+    releasedTime = millis();
+    long pressDuration = releasedTime - pressedTime;
+    if( pressDuration > LONG_PRESS_TIME ) {
       Serial.println("Reseting the WiFi credentials");
       write_flash("", 0); 
       write_flash("", 40); 
@@ -193,8 +204,8 @@ void resetWifi()
       display.println("Dang khoi dong lai...");
       display.display();
       delay(2000);
-      ESP.restart();            
-    }
+      ESP.restart();        
+    }    
   }
 }
 
@@ -234,14 +245,14 @@ void KetNoiAPI() {
     HienThiThoiTiet();
     startConnectApiMillis = currentMillis;
   }
-  HienThiCanhBaoThoiTiet();
-
+  
   // Thời gian phát cảnh báo theo cài đặt
   if (currentMillis - startAlertMillis >= alertPeriod) {
-    String text = "Chú ý !" + (String)noidungCanhBaoHienThi;
+    String text = (String)noidungCanhBao;
     PhatThongBao(text.c_str());
     startAlertMillis = currentMillis;
   }
+  HienThiCanhBaoThoiTiet();
 }
 
 // Hiển thị icon thời tiết
@@ -280,6 +291,7 @@ void HienThiThoiGian() {
   display.setCursor(5, 54);
   display.setTextSize(1);
   display.println(thoigian);
+  display.display();
 }
 
 // HIỂN THỊ THỜI TIẾT //
@@ -308,7 +320,7 @@ String HienThiThoiTiet() {
   {
     display.clearDisplay();
     payload=http.getString();
-    Serial.println(payload);
+    //Serial.println(payload);
 
     // Parsing
     JsonDocument root;
@@ -327,9 +339,13 @@ String HienThiThoiTiet() {
     // Kiểm tra có thông tin cảnh báo
     JsonArray arrayAlert = object["alerts"];
     if (!arrayAlert.isNull()) {
-      noidungCanhBaoHienThi = arrayAlert[0]["description"];
+      const char* description = arrayAlert[0]["description"];
+      noidungCanhBao = (String)description;
+      noidungCanhBaoHienThi = xoaDauTiengViet(noidungCanhBao);
+      noidungCanhBao = "Chú ý !!!" + noidungCanhBao;
     } else {
-      noidungCanhBaoHienThi= "";
+      noidungCanhBao= "";
+      noidungCanhBaoHienThi = "";
     }
     
     // Hien thi thong tin
@@ -345,7 +361,7 @@ String HienThiThoiTiet() {
     display.print("C");
     display.setTextSize(1);
     display.setCursor(62, 30);
-    String thoitiet = convertVietnameseString((String)thongtinThoiTiet);
+    String thoitiet = xoaDauTiengViet((String)thongtinThoiTiet);
     display.println(thoitiet);
     display.drawLine(0, 48, 127, 48, WHITE);
 
@@ -359,11 +375,11 @@ String HienThiThoiTiet() {
 void HienThiCanhBaoThoiTiet() {
   // Nếu có thông tin cảnh báo thì hiển thị
   display.setCursor(0, 56);
-  display.fillRect(0, 56, 64, 16, SSD1306_BLACK);
-  if (strlen(noidungCanhBaoHienThi) > 0) {
+  //int16_t textWidth = display.textWidth(noidungCanhBaoHienThi);
+  display.fillRect(0, 56, 128, 16, SSD1306_BLACK);
+  if (noidungCanhBaoHienThi.length() > 0) {
     HienThiScroll();
   } else {
-    display.stopscroll();
     HienThiThoiGian();
   }
 }
@@ -371,26 +387,23 @@ void HienThiCanhBaoThoiTiet() {
 // HIỂN THỊ SCROLL TEXT //
 void HienThiScroll() {
   static int16_t x = SCREEN_WIDTH;
-  String noidung = removeDiacritics((String)noidungCanhBaoHienThi);
-  Serial.println(noidung);
-
-  while (x >= -display.width()) {
-    display.setCursor(0, 56);
-    display.fillRect(x, 56, 128, 16, SSD1306_BLACK);
+  int textWidth = noidungCanhBaoHienThi.length() * 6;
+  while (x >= -textWidth) {
+    //display.setCursor(0, 56);
+    display.fillRect(0, 56, SCREEN_WIDTH, 16, SSD1306_BLACK);
     display.setCursor(x, 56);
-    display.println(noidung);
+    display.println(noidungCanhBaoHienThi);
     display.display();
     delay(50); // Adjust scroll speed
     x -= SCROLL_SPEED;
   }
-
-  // Reset x position for next iteration
   x = SCREEN_WIDTH;
 }
+
 // ÂM THANH
 void setupAmThanh() {
     audio.setPinout(I2S_BCLK, I2S_LRC, I2S_DOUT);
-    audio.setVolume(21); // default 0...21
+    audio.setVolume(25); // default 0...21
 }
 
 void PhatThongBao(const char* thongbao) {
