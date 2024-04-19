@@ -1,104 +1,462 @@
-#include <Arduino.h>
-
-void setup() {
-  Serial.begin(9600);
-  while (!Serial) {
-    ; // Chờ tới khi Serial hoạt động
-  }
-  char arraya[] = {'à', 'á'};
-  String vietnameseWithDiacritics = "Anh đéo à";
-  // String rs = "";
-  // for (int i = 0; i < vietnameseWithDiacritics.length(); i++) {
-  //   rs +=vietnameseWithDiacritics[i];
-  // }
-  // Serial.println(rs);
-  String vietnameseWithoutDiacritics = removeDiacritics(vietnameseWithDiacritics);
-
-  Serial.println(vietnameseWithoutDiacritics);
+String xoaDauTiengViet(String str) {
+  str.replace("À", "A");
+  str.replace("Á", "A");
+  str.replace("Â", "A");
+  str.replace("Ã", "A");
+  str.replace("Ä", "A");
+  str.replace("Å", "A");
+  str.replace("Ấ", "A");
+  str.replace("Ắ", "A");
+  str.replace("Ẳ", "A");
+  str.replace("Ẵ", "A");
+  str.replace("Ặ", "A");
+  str.replace("Æ", "AE");
+  str.replace("Ầ", "A");
+  str.replace("Ằ", "A");
+  str.replace("Ȃ", "A");
+  str.replace("Ả", "A");
+  str.replace("Ạ", "A");
+  str.replace("Ẩ", "A");
+  str.replace("Ẫ", "A");
+  str.replace("Ậ", "A");
+  str.replace("Ç", "C");
+  str.replace("Ḉ", "C");
+  str.replace("È", "E");
+  str.replace("É", "E");
+  str.replace("Ê", "E");
+  str.replace("Ë", "E");
+  str.replace("Ế", "E");
+  str.replace("Ḗ", "E");
+  str.replace("Ề", "E");
+  str.replace("Ḕ", "E");
+  str.replace("Ḝ", "E");
+  str.replace("Ȇ", "E");
+  str.replace("Ẻ", "E");
+  str.replace("Ẽ", "E");
+  str.replace("Ẹ", "E");
+  str.replace("Ể", "E");
+  str.replace("Ễ", "E");
+  str.replace("Ệ", "E");
+  str.replace("Ì", "I");
+  str.replace("Í", "I");
+  str.replace("Î", "I");
+  str.replace("Ï", "I");
+  str.replace("Ḯ", "I");
+  str.replace("Ȋ", "I");
+  str.replace("Ỉ", "I");
+  str.replace("Ị", "I");
+  str.replace("Ð", "D");
+  str.replace("Ñ", "N");
+  str.replace("Ò", "O");
+  str.replace("Ó", "O");
+  str.replace("Ô", "O");
+  str.replace("Õ", "O");
+  str.replace("Ö", "O");
+  str.replace("Ø", "O");
+  str.replace("Ố", "O");
+  str.replace("Ṍ", "O");
+  str.replace("Ṓ", "O");
+  str.replace("Ȏ", "O");
+  str.replace("Ỏ", "O");
+  str.replace("Ọ", "O");
+  str.replace("Ổ", "O");
+  str.replace("Ỗ", "O");
+  str.replace("Ộ", "O");
+  str.replace("Ờ", "O");
+  str.replace("Ở", "O");
+  str.replace("Ỡ", "O");
+  str.replace("Ớ", "O");
+  str.replace("Ợ", "O");
+  str.replace("Ù", "U");
+  str.replace("Ú", "U");
+  str.replace("Û", "U");
+  str.replace("Ü", "U");
+  str.replace("Ủ", "U");
+  str.replace("Ụ", "U");
+  str.replace("Ử", "U");
+  str.replace("Ữ", "U");
+  str.replace("Ự", "U");
+  str.replace("Ý", "Y");
+  str.replace("à", "a");
+  str.replace("á", "a");
+  str.replace("â", "a");
+  str.replace("ã", "a");
+  str.replace("ä", "a");
+  str.replace("å", "a");
+  str.replace("ấ", "a");
+  str.replace("ắ", "a");
+  str.replace("ẳ", "a");
+  str.replace("ẵ", "a");
+  str.replace("ặ", "a");
+  str.replace("æ", "ae");
+  str.replace("ầ", "a");
+  str.replace("ằ", "a");
+  str.replace("ȃ", "a");
+  str.replace("ả", "a");
+  str.replace("ạ", "a");
+  str.replace("ẩ", "a");
+  str.replace("ẫ", "a");
+  str.replace("ậ", "a");
+  str.replace("ç", "c");
+  str.replace("ḉ", "c");
+  str.replace("è", "e");
+  str.replace("é", "e");
+  str.replace("ê", "e");
+  str.replace("ë", "e");
+  str.replace("ế", "e");
+  str.replace("ḗ", "e");
+  str.replace("ề", "e");
+  str.replace("ḕ", "e");
+  str.replace("ḝ", "e");
+  str.replace("ȇ", "e");
+  str.replace("ẻ", "e");
+  str.replace("ẽ", "e");
+  str.replace("ẹ", "e");
+  str.replace("ể", "e");
+  str.replace("ễ", "e");
+  str.replace("ệ", "e");
+  str.replace("ì", "i");
+  str.replace("í", "i");
+  str.replace("î", "i");
+  str.replace("ï", "i");
+  str.replace("ḯ", "i");
+  str.replace("ȋ", "i");
+  str.replace("ỉ", "i");
+  str.replace("ị", "i");
+  str.replace("ð", "d");
+  str.replace("ñ", "n");
+  str.replace("ò", "o");
+  str.replace("ó", "o");
+  str.replace("ô", "o");
+  str.replace("õ", "o");
+  str.replace("ö", "o");
+  str.replace("ø", "o");
+  str.replace("ố", "o");
+  str.replace("ṍ", "o");
+  str.replace("ṓ", "o");
+  str.replace("ȏ", "o");
+  str.replace("ỏ", "o");
+  str.replace("ọ", "o");
+  str.replace("ổ", "o");
+  str.replace("ỗ", "o");
+  str.replace("ộ", "o");
+  str.replace("ờ", "o");
+  str.replace("ở", "o");
+  str.replace("ỡ", "o");
+  str.replace("ớ", "o");
+  str.replace("ợ", "o");
+  str.replace("ù", "u");
+  str.replace("ú", "u");
+  str.replace("û", "u");
+  str.replace("ü", "u");
+  str.replace("ủ", "u");
+  str.replace("ụ", "u");
+  str.replace("ử", "u");
+  str.replace("ữ", "u");
+  str.replace("ự", "u");
+  str.replace("ý", "y");
+  str.replace("ÿ", "y");
+  str.replace("Ā", "A");
+  str.replace("ā", "a");
+  str.replace("Ă", "A");
+  str.replace("ă", "a");
+  str.replace("Ą", "A");
+  str.replace("ą", "a");
+  str.replace("Ć", "C");
+  str.replace("ć", "c");
+  str.replace("Ĉ", "C");
+  str.replace("ĉ", "c");
+  str.replace("Ċ", "C");
+  str.replace("ċ", "c");
+  str.replace("Č", "C");
+  str.replace("č", "c");
+  str.replace("C̆", "C");
+  str.replace("c̆", "c");
+  str.replace("Ď", "D");
+  str.replace("ď", "d");
+  str.replace("Đ", "D");
+  str.replace("đ", "d");
+  str.replace("Ē", "E");
+  str.replace("ē", "e");
+  str.replace("Ĕ", "E");
+  str.replace("ĕ", "e");
+  str.replace("Ė", "E");
+  str.replace("ė", "e");
+  str.replace("Ę", "E");
+  str.replace("ę", "e");
+  str.replace("Ě", "E");
+  str.replace("ě", "e");
+  str.replace("Ĝ", "G");
+  str.replace("Ǵ", "G");
+  str.replace("ĝ", "g");
+  str.replace("ǵ", "g");
+  str.replace("Ğ", "G");
+  str.replace("ğ", "g");
+  str.replace("Ġ", "G");
+  str.replace("ġ", "g");
+  str.replace("Ģ", "G");
+  str.replace("ģ", "g");
+  str.replace("Ĥ", "H");
+  str.replace("ĥ", "h");
+  str.replace("Ħ", "H");
+  str.replace("ħ", "h");
+  str.replace("Ḫ", "H");
+  str.replace("ḫ", "h");
+  str.replace("Ĩ", "I");
+  str.replace("ĩ", "i");
+  str.replace("Ī", "I");
+  str.replace("ī", "i");
+  str.replace("Ĭ", "I");
+  str.replace("ĭ", "i");
+  str.replace("Į", "I");
+  str.replace("į", "i");
+  str.replace("İ", "I");
+  str.replace("ı", "i");
+  str.replace("Ĳ", "IJ");
+  str.replace("ĳ", "ij");
+  str.replace("Ĵ", "J");
+  str.replace("ĵ", "j");
+  str.replace("Ķ", "K");
+  str.replace("ķ", "k");
+  str.replace("Ḱ", "K");
+  str.replace("ḱ", "k");
+  str.replace("K̆", "K");
+  str.replace("k̆", "k");
+  str.replace("Ĺ", "L");
+  str.replace("ĺ", "l");
+  str.replace("Ļ", "L");
+  str.replace("ļ", "l");
+  str.replace("Ľ", "L");
+  str.replace("ľ", "l");
+  str.replace("Ŀ", "L");
+  str.replace("ŀ", "l");
+  str.replace("Ł", "l");
+  str.replace("ł", "l");
+  str.replace("Ḿ", "M");
+  str.replace("ḿ", "m");
+  str.replace("M̆", "M");
+  str.replace("m̆", "m");
+  str.replace("Ń", "N");
+  str.replace("ń", "n");
+  str.replace("Ņ", "N");
+  str.replace("ņ", "n");
+  str.replace("Ň", "N");
+  str.replace("ň", "n");
+  str.replace("ŉ", "n");
+  str.replace("N̆", "N");
+  str.replace("n̆", "n");
+  str.replace("Ō", "O");
+  str.replace("ō", "o");
+  str.replace("Ŏ", "O");
+  str.replace("ŏ", "o");
+  str.replace("Ő", "O");
+  str.replace("ő", "o");
+  str.replace("Œ", "OE");
+  str.replace("œ", "oe");
+  str.replace("P̆", "P");
+  str.replace("p̆", "p");
+  str.replace("Ŕ", "R");
+  str.replace("ŕ", "r");
+  str.replace("Ŗ", "R");
+  str.replace("ŗ", "r");
+  str.replace("Ř", "R");
+  str.replace("ř", "r");
+  str.replace("R̆", "R");
+  str.replace("r̆", "r");
+  str.replace("Ȓ", "R");
+  str.replace("ȓ", "r");
+  str.replace("Ś", "S");
+  str.replace("ś", "s");
+  str.replace("Ŝ", "S");
+  str.replace("ŝ", "s");
+  str.replace("Ş", "S");
+  str.replace("Ș", "S");
+  str.replace("ș", "s");
+  str.replace("ş", "s");
+  str.replace("Š", "S");
+  str.replace("š", "s");
+  str.replace("Ţ", "T");
+  str.replace("ţ", "t");
+  str.replace("ț", "t");
+  str.replace("Ț", "T");
+  str.replace("Ť", "T");
+  str.replace("ť", "t");
+  str.replace("Ŧ", "T");
+  str.replace("ŧ", "t");
+  str.replace("T̆", "T");
+  str.replace("t̆", "t");
+  str.replace("Ũ", "U");
+  str.replace("ũ", "u");
+  str.replace("Ū", "U");
+  str.replace("ū", "u");
+  str.replace("Ŭ", "U");
+  str.replace("ŭ", "u");
+  str.replace("Ů", "U");
+  str.replace("ů", "u");
+  str.replace("Ű", "U");
+  str.replace("ű", "u");
+  str.replace("Ų", "U");
+  str.replace("ų", "u");
+  str.replace("Ȗ", "U");
+  str.replace("ȗ", "u");
+  str.replace("V̆", "V");
+  str.replace("v̆", "v");
+  str.replace("Ŵ", "W");
+  str.replace("ŵ", "w");
+  str.replace("Ẃ", "W");
+  str.replace("ẃ", "w");
+  str.replace("X̆", "X");
+  str.replace("x̆", "x");
+  str.replace("Ŷ", "Y");
+  str.replace("ŷ", "y");
+  str.replace("Ÿ", "Y");
+  str.replace("Y̆", "Y");
+  str.replace("y̆", "y");
+  str.replace("Ź", "Z");
+  str.replace("ź", "z");
+  str.replace("Ż", "Z");
+  str.replace("ż", "z");
+  str.replace("Ž", "Z");
+  str.replace("ž", "z");
+  str.replace("ſ", "s");
+  str.replace("ƒ", "f");
+  str.replace("Ơ", "O");
+  str.replace("ơ", "o");
+  str.replace("Ư", "U");
+  str.replace("ư", "u");
+  str.replace("Ǎ", "A");
+  str.replace("ǎ", "a");
+  str.replace("Ǐ", "I");
+  str.replace("ǐ", "i");
+  str.replace("Ǒ", "O");
+  str.replace("ǒ", "o");
+  str.replace("Ǔ", "U");
+  str.replace("ǔ", "u");
+  str.replace("Ǖ", "U");
+  str.replace("ǖ", "u");
+  str.replace("Ǘ", "U");
+  str.replace("ǘ", "u");
+  str.replace("Ǚ", "U");
+  str.replace("ǚ", "u");
+  str.replace("Ǜ", "U");
+  str.replace("ǜ", "u");
+  str.replace("Ứ", "U");
+  str.replace("ứ", "u");
+  str.replace("Ṹ", "U");
+  str.replace("ṹ", "u");
+  str.replace("Ǻ", "A");
+  str.replace("ǻ", "a");
+  str.replace("Ǽ", "AE");
+  str.replace("ǽ", "ae");
+  str.replace("Ǿ", "O");
+  str.replace("ǿ", "o");
+  str.replace("Þ", "TH");
+  str.replace("þ", "th");
+  str.replace("Ṕ", "P");
+  str.replace("ṕ", "p");
+  str.replace("Ṥ", "S");
+  str.replace("ṥ", "s");
+  str.replace("X́", "X");
+  str.replace("x́", "x");
+  str.replace("Ѓ", "Г");
+  str.replace("ѓ", "г");
+  str.replace("Ќ", "К");
+  str.replace("ќ", "к");
+  str.replace("A̋", "A");
+  str.replace("a̋", "a");
+  str.replace("E̋", "E");
+  str.replace("e̋", "e");
+  str.replace("I̋", "I");
+  str.replace("i̋", "i");
+  str.replace("Ǹ", "N");
+  str.replace("ǹ", "n");
+  str.replace("Ồ", "O");
+  str.replace("ồ", "o");
+  str.replace("Ṑ", "O");
+  str.replace("ṑ", "o");
+  str.replace("Ừ", "U");
+  str.replace("ừ", "u");
+  str.replace("Ẁ", "W");
+  str.replace("ẁ", "w");
+  str.replace("Ỳ", "Y");
+  str.replace("ỳ", "y");
+  str.replace("Ȁ", "A");
+  str.replace("ȁ", "a");
+  str.replace("Ȅ", "E");
+  str.replace("ȅ", "e");
+  str.replace("Ȉ", "I");
+  str.replace("ȉ", "i");
+  str.replace("Ȍ", "O");
+  str.replace("ȍ", "o");
+  str.replace("Ȑ", "R");
+  str.replace("ȑ", "r");
+  str.replace("Ȕ", "U");
+  str.replace("ȕ", "u");
+  str.replace("B̌", "B");
+  str.replace("b̌", "b");
+  str.replace("Č̣", "C");
+  str.replace("č̣", "c");
+  str.replace("Ê̌", "E");
+  str.replace("ê̌", "e");
+  str.replace("F̌", "F");
+  str.replace("f̌", "f");
+  str.replace("Ǧ", "G");
+  str.replace("ǧ", "g");
+  str.replace("Ȟ", "H");
+  str.replace("ȟ", "h");
+  str.replace("J̌", "J");
+  str.replace("ǰ", "j");
+  str.replace("Ǩ", "K");
+  str.replace("ǩ", "k");
+  str.replace("M̌", "M");
+  str.replace("m̌", "m");
+  str.replace("P̌", "P");
+  str.replace("p̌", "p");
+  str.replace("Q̌", "Q");
+  str.replace("q̌", "q");
+  str.replace("Ř̩", "R");
+  str.replace("ř̩", "r");
+  str.replace("Ṧ", "S");
+  str.replace("ṧ", "s");
+  str.replace("V̌", "V");
+  str.replace("v̌", "v");
+  str.replace("W̌", "W");
+  str.replace("w̌", "w");
+  str.replace("X̌", "X");
+  str.replace("x̌", "x");
+  str.replace("Y̌", "Y");
+  str.replace("y̌", "y");
+  str.replace("A̧", "A");
+  str.replace("a̧", "a");
+  str.replace("B̧", "B");
+  str.replace("b̧", "b");
+  str.replace("Ḑ", "D");
+  str.replace("ḑ", "d");
+  str.replace("Ȩ", "E");
+  str.replace("ȩ", "e");
+  str.replace("Ɛ̧", "E");
+  str.replace("ɛ̧", "e");
+  str.replace("Ḩ", "H");
+  str.replace("ḩ", "h");
+  str.replace("I̧", "I");
+  str.replace("i̧", "i");
+  str.replace("Ɨ̧", "I");
+  str.replace("ɨ̧", "i");
+  str.replace("M̧", "M");
+  str.replace("m̧", "m");
+  str.replace("O̧", "O");
+  str.replace("o̧", "o");
+  str.replace("Q̧", "Q");
+  str.replace("q̧", "q");
+  str.replace("U̧", "U");
+  str.replace("u̧", "u");
+  str.replace("X̧", "X");
+  str.replace("x̧", "x");
+  str.replace("Z̧", "Z");
+  str.replace("z̧", "z");
+  str.replace("й","и");
+  str.replace("Й","И");
+  str.replace("ё","е");
+  str.replace("Ё","Е");
+  return str;
 }
-
-void loop() {
-  // Không cần làm gì trong hàm loop
-}
-
-String removeDiacritics(String input) {
-  Serial.println(input);
-  // Dấu và ký tự tương ứng
-  String diacritics = "à,á,ả,ã,ạ,â,ầ,ấ,ẩ,ẫ,ậ,ă,ằ,ắ,ẳ,ẵ,ặ,è,é,ẻ,ẽ,ẹ,ê,ề,ế,ể,ễ,ệ,ì,í,ỉ,ĩ,ị,ò,ó,ỏ,õ,ọ,ô,ồ,ố,ổ,ỗ,ộ,ơ,ờ,ớ,ở,ỡ,ợ,ù,ú,ủ,ũ,ụ,ư,ừ,ứ,ử,ữ,ự,ỳ,ý,ỷ,ỹ,ỵ,đ,À,Á,Ả,Ã,Ạ,Â,Ầ,Ấ,Ẩ,Ẫ,Ậ,Ă,Ằ,Ắ,Ẳ,Ẵ,Ặ,È,É,Ẻ,Ẽ,Ẹ,Ê,Ề,Ế,Ể,Ễ,Ệ,Ì,Í,Ỉ,Ĩ,Ị,Ò,Ó,Ỏ,Õ,Ọ,Ô,Ồ,Ố,Ổ,Ỗ,Ộ,Ơ,Ờ,Ớ,Ở,Ỡ,Ợ,Ù,Ú,Ủ,Ũ,Ụ,Ư,Ừ,Ứ,Ử,Ữ,Ự,Ỳ,Ý,Ỷ,Ỹ,Ỵ,Đ";
-  String withoutDiacritics = "a,a,a,a,a,a,a,a,a,a,a,a,a,a,a,a,a,a,e,e,e,e,e,e,e,e,e,e,e,i,i,i,i,i,o,o,o,o,o,o,o,o,o,o,o,o,o,o,o,o,o,u,u,u,u,u,u,u,u,u,u,u,y,y,y,y,y,d,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,E,E,E,E,E,E,E,E,E,E,E,I,I,I,I,I,O,O,O,O,O,O,O,O,O,O,O,O,O,O,O,O,O,O,U,U,U,U,U,U,U,U,U,U,U,Y,Y,Y,Y,Y,D";
-    Serial.println(diacritics.length());
-    Serial.println(withoutDiacritics.length());
-  // Tạo một chuỗi mới để lưu trữ kết quả
-  String result = "";
-  String rs = "";
-  Serial.println(countSpecialCharacters(diacritics.substring(98), ','));
-  // Duyệt qua từng ký tự trong chuỗi đầu vào
-  for (int i = 0; i < input.length(); i++) {
-    boolean isExist = false;
-    rs +=input[i];
-    for (int j = 0; j < diacritics.length(); j++) {
-       if (input[i] == diacritics[j]) {
-         char c = input[i];
-         //Serial.print();
-         Serial.print(j);
-         char k = withoutDiacritics[j];
-    //     Serial.println();
-         //Serial.print(diacritics[j]);
-    //     // Nếu là dấu, thay thế bằng ký tự không dấu tương ứng
-         result += k;
-         isExist = true;
-         break;
-       }
-    }
-    // Nếu không phải dấu, thêm vào chuỗi kết quả
-    if (!isExist) {
-      result += input[i];
-    }
-
-  }
-  Serial.println(rs);
-  // Trả về chuỗi đã được xử lý
-  return result;
-}
-int countSpecialCharacters(const String& str, char c) {
-    int count = 0; // Số lượng ký tự đặc biệt
-//Serial.print(str);
-    for (int i = 0; i < str.length(); ++i) {
-        // Kiểm tra xem ký tự có phải là ký tự đặc biệt không
-        if (str[i] == c) {
-            count++;
-        }
-    }
-
-    return count;
-}
-// Hàm phân tách chuỗi thành mảng các chuỗi con dựa trên một ký tự đặc biệt
-void splitString(const String& str, char delimiter, String* tokens, int maxTokens) {
-    int tokenIndex = 0; // Chỉ số của token hiện tại
-    int startIndex = 0; // Chỉ số bắt đầu của token hiện tại
-    
-    // Duyệt qua từng ký tự trong chuỗi
-    for (int i = 0; i < str.length(); ++i) {
-        // Nếu gặp ký tự phân cách
-        if (str[i] == delimiter) {
-            // Thêm token mới vào mảng tokens
-            tokens[tokenIndex++] = str.substring(startIndex, i);
-            startIndex = i + 1; // Cập nhật chỉ số bắt đầu của token mới
-            // Nếu đã đạt đến số lượng token tối đa được xác định, thoát vòng lặp
-            if (tokenIndex >= maxTokens) break;
-        }
-    }
-    // Thêm token cuối cùng vào mảng tokens
-    tokens[tokenIndex++] = str.substring(startIndex);
-}
-
-// void tach() {
-
-// char delimiter = ',';
-//     int maxTokens = 6; // Số lượng token tối đa (số lượng phần tử trong mảng tokens)
-//     String tokens[maxTokens]; // Mảng để lưu trữ các token
-    
-//     // Phân tách chuỗi và lưu kết quả vào mảng tokens
-//     splitString(inputString, delimiter, tokens, maxTokens);
-	
-// 	}
